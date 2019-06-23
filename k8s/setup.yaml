@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+spec:
+  ports:
+    - port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    run: timescaledb
+
+---
+
+# TODO: break out secrets and change to stateful set with volumes
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: timescaledb
+  name: timescaledb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: timescaledb
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        run: timescaledb
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_PASSWORD
+              value: password
+          image: timescale/timescaledb:latest-pg11
+          name: timescaledb
+          ports:
+            - containerPort: 5432
+          resources: {}
+
+---
+
+apiVersion: serving.knative.dev/v1alpha1
+kind: Service
+metadata:
+  name: cloud-event-explorer-recorder
+spec:
+  template:
+    spec:
+      containers:
+        - image: ryanbrainard/cloud-event-explorer-recorder:v0.0.1alpha4
+          env:
+            - name: DATABASE_URL
+              value: postgres://postgres:password@timescaledb/cloudeventexplorer?sslmode=disable
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-event-explorer
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cloud-event-explorer-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: cloud-event-explorer
+
+---
+
+apiVersion: eventing.knative.dev/v1alpha1
+kind: Trigger
+metadata:
+  name: cloud-event-explorer-trigger
+spec:
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1alpha1
+      kind: Service
+      name: cloud-event-explorer-recorder
+
+---
+
+apiVersion: v1
+items:
+  - apiVersion: sources.eventing.knative.dev/v1alpha1
+    kind: ApiServerSource
+      name: kitchen-sink
+    spec:
+      mode: Resource
+      resources:
+        - apiVersion: apps/v1
+          kind: Deployment
+        - apiVersion: apps/v1
+          kind: ReplicaSet
+        - apiVersion: v1
+          kind: Pod
+      serviceAccountName: events-sa
+      sink:
+        apiVersion: eventing.knative.dev/v1alpha1
+        kind: Broker
+        name: default
