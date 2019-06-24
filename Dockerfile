@@ -1,6 +1,6 @@
 FROM golang:1.12
 
-WORKDIR $GOPATH/src/go.ryanbrainard.com/cloud-event-explorer
+WORKDIR $GOPATH/src/go.ryanbrainard.com/timesink
 ENV GO111MODULE=on
 COPY go.mod .
 COPY go.sum .

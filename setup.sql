@@ -1,5 +1,4 @@
-create table cloud_events
-(
+create table cloud_events (
     time timestamp with time zone not null,
     id text,
     type text,

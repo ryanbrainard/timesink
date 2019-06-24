@@ -4,7 +4,7 @@ import (
 	"context"
 	cloudevents "github.com/cloudevents/sdk-go"
 	_ "github.com/lib/pq"
-	"go.ryanbrainard.com/cloud-event-explorer/recorder"
+	"go.ryanbrainard.com/timesink/recorder"
 	"log"
 	"os"
 )

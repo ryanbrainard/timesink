@@ -46,49 +46,49 @@ spec:
 apiVersion: serving.knative.dev/v1alpha1
 kind: Service
 metadata:
-  name: cloud-event-explorer-recorder
+  name: timesink-recorder
 spec:
   template:
     spec:
       containers:
-        - image: ryanbrainard/cloud-event-explorer-recorder:v0.0.1alpha4
+        - image: ryanbrainard/timesink-recorder:v0.0.1alpha4
           env:
             - name: DATABASE_URL
-              value: postgres://postgres:password@timescaledb/cloudeventexplorer?sslmode=disable
+              value: postgres://postgres:password@timescaledb/timesink?sslmode=disable
 
 ---
 
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: cloud-event-explorer
+  name: timesink
 
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: cloud-event-explorer-view
+  name: timesink-view
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: view
 subjects:
   - kind: ServiceAccount
-    name: cloud-event-explorer
+    name: timesink
 
 ---
 
 apiVersion: eventing.knative.dev/v1alpha1
 kind: Trigger
 metadata:
-  name: cloud-event-explorer-trigger
+  name: timesink-trigger
 spec:
   subscriber:
     ref:
       apiVersion: serving.knative.dev/v1alpha1
       kind: Service
-      name: cloud-event-explorer-recorder
+      name: timesink-recorder
 
 ---
 

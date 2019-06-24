@@ -1,4 +1,4 @@
-module go.ryanbrainard.com/cloud-event-explorer
+module go.ryanbrainard.com/timesink
 
 go 1.12
 
