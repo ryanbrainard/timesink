@@ -4,24 +4,26 @@ import (
 	"context"
 	cloudevents "github.com/cloudevents/sdk-go"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"go.ryanbrainard.com/timesink"
-	"log"
 	"os"
 )
 
 func main() {
+	logger := logrus.New().WithField("service", "timesink-recorder")
+
 	databaseUrl, ok := os.LookupEnv("DATABASE_URL")
 	if !ok {
-		panic("DATABASE_URL not set")
+		logger.Panic("DATABASE_URL not set")
 	}
-	r := timesink.NewRecorder(databaseUrl)
+	r := timesink.NewRecorder(databaseUrl, logger)
 
 	c, err := cloudevents.NewDefaultClient()
 	if err != nil {
-		log.Fatalf("failed to create client, %v", err)
+		logger.WithError(err).Fatal("failed to create client")
 	}
 
 	if err := c.StartReceiver(context.Background(), r.HandleEvent); err != nil {
-		log.Fatalf("failed to start receiver: %s", err)
+		logger.WithError(err).Fatal("failed to start receiver")
 	}
 }

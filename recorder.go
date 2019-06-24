@@ -4,38 +4,47 @@ import (
 	"database/sql"
 	cloudevents "github.com/cloudevents/sdk-go"
 	_ "github.com/lib/pq"
-	"log"
+	"github.com/sirupsen/logrus"
 )
 
 type recorder struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *logrus.Entry
 }
 
-func NewRecorder(databaseUrl string) *recorder {
+func NewRecorder(databaseUrl string, logger *logrus.Entry) *recorder {
+	l := logger.WithField("component", "Recorder")
+
 	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
-		log.Fatal("DB connection error:", err)
+		l.Fatal("DB connection error:", err)
 	}
 
-	return &recorder{db: db}
+	return &recorder{
+		db:     db,
+		logger: l,
+	}
 }
 
-func (h *recorder) HandleEvent(event cloudevents.Event) {
-	log.Printf("component=recorder.HandleEvent id=%q at=start", event.ID())
+func (r *recorder) HandleEvent(event cloudevents.Event) {
+	l := r.logger.WithField("fn", "HandleEvent").WithField("id", event.ID())
+	l.WithField("at", "start").Info()
+	defer l.WithField("at", "finish").Info()
 
 	if err := event.Validate(); err != nil {
-		log.Printf("component=recorder.HandleEvent id=%q at=validation.error err=%q", event.ID(), err)
+		r.logger.WithError(err).Error("validation error")
 	}
 
 	raw, err := event.MarshalJSON()
 	if err != nil {
-		log.Printf("component=recorder.HandleEvent id=%q at=json.error err=%q", event.ID(), err)
+		r.logger.WithError(err).Error("json marshall error")
 	}
 
 	// TODO: move to preparedstatement
-	sql := "INSERT INTO cloud_events (time, id, type, source, subject, raw) VALUES($1, $2, $3, $4, $5, $6)"
+	insert := "INSERT INTO cloud_events (time, id, type, source, subject, raw) " +
+		"VALUES($1, $2, $3, $4, $5, $6)"
 
-	_, err = h.db.Exec(sql,
+	_, err = r.db.Exec(insert,
 		event.Time(),
 		event.ID(),
 		event.Type(),
@@ -44,8 +53,6 @@ func (h *recorder) HandleEvent(event cloudevents.Event) {
 		raw,
 	)
 	if err != nil {
-		log.Printf("component=recorder.HandleEvent id=%q at=insert.error err=%q", event.ID(), err)
+		r.logger.WithError(err).Error("db insert error")
 	}
-
-	log.Printf("component=recorder.HandleEvent id=%q at=finish", event.ID())
 }
