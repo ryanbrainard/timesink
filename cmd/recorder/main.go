@@ -4,7 +4,7 @@ import (
 	"context"
 	cloudevents "github.com/cloudevents/sdk-go"
 	_ "github.com/lib/pq"
-	"go.ryanbrainard.com/timesink/recorder"
+	"go.ryanbrainard.com/timesink"
 	"log"
 	"os"
 )
@@ -14,7 +14,7 @@ func main() {
 	if !ok {
 		panic("DATABASE_URL not set")
 	}
-	r := recorder.New(databaseUrl)
+	r := timesink.NewRecorder(databaseUrl)
 
 	c, err := cloudevents.NewDefaultClient()
 	if err != nil {

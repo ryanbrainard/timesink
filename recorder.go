@@ -1,4 +1,4 @@
-package recorder
+package timesink
 
 import (
 	"database/sql"
@@ -11,7 +11,7 @@ type recorder struct {
 	db *sql.DB
 }
 
-func New(databaseUrl string) *recorder {
+func NewRecorder(databaseUrl string) *recorder {
 	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
 		log.Fatal("DB connection error:", err)
