@@ -33,11 +33,13 @@ func (r *recorder) HandleEvent(event cloudevents.Event) {
 
 	if err := event.Validate(); err != nil {
 		r.logger.WithError(err).Error("validation error")
+		return
 	}
 
 	raw, err := event.MarshalJSON()
 	if err != nil {
 		r.logger.WithError(err).Error("json marshall error")
+		return
 	}
 
 	// TODO: move to preparedstatement
@@ -54,5 +56,6 @@ func (r *recorder) HandleEvent(event cloudevents.Event) {
 	)
 	if err != nil {
 		r.logger.WithError(err).Error("db insert error")
+		return
 	}
 }
