@@ -39,6 +39,7 @@ func (q *querier) queryLastEventByGroupVersionKindName(apiVersion, kind, name st
 		"raw -> 'data' ->> 'apiVersion'          = $1 AND " +
 		"raw -> 'data' ->> 'kind'                = $2 AND " +
 		"raw -> 'data' ->  'metadata' ->> 'name' = $3" +
+		"ORDER BY time DESC " + // TODO: how to get correct one at point in time?
 		"LIMIT 1"
 	row := q.db.QueryRow(query, apiVersion, kind, name)
 	return q.scanEventRow(row)
