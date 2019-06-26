@@ -39,7 +39,7 @@ func (q *querier) SchemaConfig() graphql.SchemaConfig {
 			Description: "Get single event",
 			Args: graphql.FieldConfigArgument{
 				"id": &graphql.ArgumentConfig{
-					Type: graphql.String,
+					Type: graphql.ID,
 				},
 			},
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
@@ -59,16 +59,16 @@ func (q *querier) queryEvent(id string) (*cloudevents.Event, error) {
 	query := "SELECT id, subject FROM cloud_events WHERE id = $1"
 	row := q.db.QueryRow(query, id)
 
-	var qId string
-	var qSubject string
-	if err := row.Scan(&qId, &qSubject); err != nil {
+	var _id string
+	var subject string
+	if err := row.Scan(&_id, &subject); err != nil {
 		q.logger.WithError(err).Error("db query error")
 		return nil, err
 	}
 
 	event := cloudevents.NewEvent()
-	event.SetID(qId)
-	event.SetSubject(qSubject)
+	event.SetID(_id)
+	event.SetSubject(subject)
 
 	return &event, nil
 }
