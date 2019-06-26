@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
 	"github.com/sirupsen/logrus"
@@ -18,7 +19,7 @@ func main() {
 	}
 	q := timesink.NewQuerier(databaseUrl, logger)
 
-	schema, err := graphql.NewSchema(q.SchemaConfig())
+	schema, err := graphql.NewSchema(timesink.SchemaConfig())
 	if err != nil {
 		panic(err)
 	}
@@ -29,7 +30,10 @@ func main() {
 		GraphiQL: true,
 	})
 
-	http.Handle("/graphql", h)
+	http.HandleFunc("/graphql", func(w http.ResponseWriter, r *http.Request) {
+		h.ContextHandler(context.WithValue(context.Background(), "q", q), w, r)
+	})
+
 	if err := http.ListenAndServe("127.0.0.1:8080", nil); err != nil {
 		panic(err)
 	}
