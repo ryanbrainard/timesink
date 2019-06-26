@@ -34,15 +34,25 @@ func (q *querier) queryEventById(id string) (*cloudevents.Event, error) {
 	return q.scanEventRow(row)
 }
 
+const queryByApiVersionKindName = "SELECT raw FROM cloud_events WHERE " +
+	"raw -> 'data' ->> 'apiVersion'          ~* $1 AND " +
+	"raw -> 'data' ->> 'kind'                ~* $2 AND " +
+	"raw -> 'data' ->  'metadata' ->> 'name' ~* $3"
+
 func (q *querier) queryLastEventByGroupVersionKindName(apiVersion, kind, name string) (*cloudevents.Event, error) {
-	query := "SELECT raw FROM cloud_events WHERE " +
-		"raw -> 'data' ->> 'apiVersion'          = $1 AND " +
-		"raw -> 'data' ->> 'kind'                = $2 AND " +
-		"raw -> 'data' ->  'metadata' ->> 'name' = $3" +
-		"ORDER BY time DESC " + // TODO: how to get correct one at point in time?
-		"LIMIT 1"
+	query := queryByApiVersionKindName + " ORDER BY time DESC LIMIT 1" // TODO: how to get correct one at point in time?
 	row := q.db.QueryRow(query, apiVersion, kind, name)
 	return q.scanEventRow(row)
+}
+
+func (q *querier) queryEventsByGroupVersionKindName(apiVersion, kind, name string, limit int) ([]*cloudevents.Event, error) {
+	query := queryByApiVersionKindName + " LIMIT $4"
+	rows, err := q.db.Query(query, apiVersion, kind, name, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return q.scanEventRows(rows)
 }
 
 func (q *querier) scanEventRow(row *sql.Row) (*cloudevents.Event, error) {
@@ -58,6 +68,29 @@ func (q *querier) scanEventRow(row *sql.Row) (*cloudevents.Event, error) {
 	}
 
 	return &event, nil
+}
+
+func (q *querier) scanEventRows(rows *sql.Rows) ([]*cloudevents.Event, error) {
+	var events []*cloudevents.Event
+	for {
+		if !rows.Next() {
+			break
+		}
+
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			q.logger.WithError(err).Error("db query error")
+			return nil, err
+		}
+
+		event := cloudevents.NewEvent()
+		if err := event.UnmarshalJSON(raw); err != nil {
+			return nil, err
+		}
+		events = append(events, &event)
+	}
+
+	return events, nil
 }
 
 func eventParamAsMap(params graphql.ResolveParams) (map[string]interface{}, error) {
@@ -84,6 +117,47 @@ func SchemaConfig() graphql.SchemaConfig {
 					return nil, nil
 				}
 				return params.Context.Value("q").(*querier).queryEventById(id)
+			},
+		},
+		"events": &graphql.Field{
+			Type:        graphql.NewList(eventType),
+			Description: "Get single event",
+			Args: graphql.FieldConfigArgument{
+				"apiVersion": &graphql.ArgumentConfig{
+					Type:         graphql.String,
+					DefaultValue: ".*",
+				},
+				"kind": &graphql.ArgumentConfig{
+					Type:         graphql.String,
+					DefaultValue: ".*",
+				},
+				"name": &graphql.ArgumentConfig{
+					Type:         graphql.String,
+					DefaultValue: ".*",
+				},
+				"limit": &graphql.ArgumentConfig{
+					Type:         graphql.Int,
+					DefaultValue: 10,
+				},
+			},
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				apiVersion, ok := params.Args["apiVersion"].(string)
+				if !ok {
+					return nil, nil
+				}
+				kind, ok := params.Args["kind"].(string)
+				if !ok {
+					return nil, nil
+				}
+				name, ok := params.Args["name"].(string)
+				if !ok {
+					return nil, nil
+				}
+				limit, ok := params.Args["limit"].(int)
+				if !ok {
+					return nil, nil
+				}
+				return params.Context.Value("q").(*querier).queryEventsByGroupVersionKindName(apiVersion, kind, name, limit)
 			},
 		},
 	}
