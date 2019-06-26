@@ -70,12 +70,6 @@ func eventParamAsMap(params graphql.ResolveParams) (map[string]interface{}, erro
 
 func SchemaConfig() graphql.SchemaConfig {
 	fields := graphql.Fields{
-		"hello": &graphql.Field{
-			Type: graphql.String,
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				return "world", nil
-			},
-		},
 		"event": &graphql.Field{
 			Type:        eventType,
 			Description: "Get single event",
