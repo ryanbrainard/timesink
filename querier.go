@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	cloudevents "github.com/cloudevents/sdk-go"
 	"github.com/graphql-go/graphql"
+	"github.com/graphql-go/graphql/language/ast"
+	"github.com/graphql-go/graphql/language/kinds"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,19 +58,19 @@ func (q *querier) SchemaConfig() graphql.SchemaConfig {
 }
 
 func (q *querier) queryEvent(id string) (*cloudevents.Event, error) {
-	query := "SELECT id, subject FROM cloud_events WHERE id = $1"
+	query := "SELECT raw FROM cloud_events WHERE id = $1"
 	row := q.db.QueryRow(query, id)
 
-	var _id string
-	var subject string
-	if err := row.Scan(&_id, &subject); err != nil {
+	var raw []byte
+	if err := row.Scan(&raw); err != nil {
 		q.logger.WithError(err).Error("db query error")
 		return nil, err
 	}
 
 	event := cloudevents.NewEvent()
-	event.SetID(_id)
-	event.SetSubject(subject)
+	if err := event.UnmarshalJSON(raw); err != nil {
+		return nil, err
+	}
 
 	return &event, nil
 }
@@ -92,5 +94,58 @@ var eventType = graphql.NewObject(graphql.ObjectConfig{
 				return params.Source.(*cloudevents.Event).Subject(), nil
 			},
 		},
+		"data": &graphql.Field{
+			Type: JsonType,
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				var data map[string]interface{}
+				if err := params.Source.(*cloudevents.Event).DataAs(&data); err != nil {
+					return nil, err
+				}
+				return data, nil
+			},
+		},
 	},
 })
+
+var JsonType = graphql.NewScalar(
+	graphql.ScalarConfig{
+		Name:        "JSON",
+		Description: "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf)",
+		Serialize: func(value interface{}) interface{} {
+			return value
+		},
+		ParseValue: func(value interface{}) interface{} {
+			return value
+		},
+		ParseLiteral: parseJsonLiteral,
+	},
+)
+
+func parseJsonLiteral(astValue ast.Value) interface{} {
+	kind := astValue.GetKind()
+
+	switch kind {
+	case kinds.StringValue:
+		return astValue.GetValue()
+	case kinds.BooleanValue:
+		return astValue.GetValue()
+	case kinds.IntValue:
+		return astValue.GetValue()
+	case kinds.FloatValue:
+		return astValue.GetValue()
+	case kinds.ObjectValue:
+		obj := make(map[string]interface{})
+		for _, v := range astValue.GetValue().([]*ast.ObjectField) {
+			obj[v.Name.Value] = parseJsonLiteral(v.Value)
+		}
+		return obj
+	case kinds.ListValue:
+		list := make([]interface{}, 0)
+		for _, v := range astValue.GetValue().([]ast.Value) {
+			list = append(list, parseJsonLiteral(v))
+		}
+		return list
+	default:
+		return nil
+	}
+}
