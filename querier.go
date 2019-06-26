@@ -118,13 +118,6 @@ var eventType = graphql.NewObject(graphql.ObjectConfig{
 				return data["metadata"].(map[string]interface{})["uid"], err
 			},
 		},
-		"owners": &graphql.Field{
-			Type: ownerListType,
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				data, err := eventParamAsMap(params)
-				return data["metadata"].(map[string]interface{})["ownerReferences"], err
-			},
-		},
 		"data": &graphql.Field{
 			Type: ObjectLiteralType,
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
@@ -138,26 +131,28 @@ var eventType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-var ownerListType = graphql.NewList(ownerType)
-
-var ownerType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Owner",
-	Fields: graphql.FieldsThunk(func() graphql.Fields {
-		return graphql.Fields{
-			"event": &graphql.Field{
-				Type: graphql.String,
-				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-					ownerRef := params.Source.(map[string]interface{})
-					return params.Context.Value("q").(*querier).queryLastEventByGroupVersionKindName(
-						ownerRef["apiVersion"].(string),
-						ownerRef["kind"].(string),
-						ownerRef["name"].(string),
-					)
-				},
-			},
-		}
-	}),
-})
+func init() {
+	eventType.AddFieldConfig("owners", &graphql.Field{
+		Type: graphql.NewList(eventType),
+		Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+			data, err := eventParamAsMap(params)
+			ownerRefs := data["metadata"].(map[string]interface{})["ownerReferences"].([]interface{})
+			var owners []*cloudevents.Event
+			for _, ownerRef := range ownerRefs {
+				owner, err := params.Context.Value("q").(*querier).queryLastEventByGroupVersionKindName(
+					ownerRef.(map[string]interface{})["apiVersion"].(string),
+					ownerRef.(map[string]interface{})["kind"].(string),
+					ownerRef.(map[string]interface{})["name"].(string),
+				)
+				if err != nil {
+					return nil, err
+				}
+				owners = append(owners, owner)
+			}
+			return owners, err
+		},
+	})
+}
 
 var ObjectLiteralType = graphql.NewScalar(
 	graphql.ScalarConfig{
