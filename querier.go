@@ -4,36 +4,32 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
-type Todo struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Done bool   `json:"done"`
+type Event struct {
+	ID      string `json:"id"`
+	Subject string `json:"subject"`
 }
 
-var TodoList []Todo
+var EventList []Event
 
 func init() {
-	todo1 := Todo{ID: "a", Text: "A todo not to forget", Done: false}
-	todo2 := Todo{ID: "b", Text: "This is the most important", Done: false}
-	todo3 := Todo{ID: "c", Text: "Please do this or else", Done: false}
-	TodoList = append(TodoList, todo1, todo2, todo3)
+	todo1 := Event{ID: "a", Subject: "A todo not to forget"}
+	todo2 := Event{ID: "b", Subject: "This is the most important"}
+	todo3 := Event{ID: "c", Subject: "Please do this or else"}
+	EventList = append(EventList, todo1, todo2, todo3)
 }
 
-// define custom GraphQL ObjectType `todoType` for our Golang struct `Todo`
+// define custom GraphQL ObjectType `eventType` for our Golang struct `Event`
 // Note that
-// - the fields in our todoType maps with the json tags for the fields in our struct
+// - the fields in our eventType maps with the json tags for the fields in our struct
 // - the field type matches the field type in our struct
-var todoType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Todo",
+var eventType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Event",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
 			Type: graphql.String,
 		},
-		"text": &graphql.Field{
+		"subject": &graphql.Field{
 			Type: graphql.String,
-		},
-		"done": &graphql.Field{
-			Type: graphql.Boolean,
 		},
 	},
 })
@@ -47,9 +43,9 @@ func SchemaConfig() graphql.SchemaConfig {
 				return "world", nil
 			},
 		},
-		"todo": &graphql.Field{
-			Type:        todoType,
-			Description: "Get single todo",
+		"event": &graphql.Field{
+			Type:        eventType,
+			Description: "Get single event",
 			Args: graphql.FieldConfigArgument{
 				"id": &graphql.ArgumentConfig{
 					Type: graphql.String,
@@ -60,14 +56,14 @@ func SchemaConfig() graphql.SchemaConfig {
 				idQuery, isOK := params.Args["id"].(string)
 				if isOK {
 					// Search for el with id
-					for _, todo := range TodoList {
+					for _, todo := range EventList {
 						if todo.ID == idQuery {
 							return todo, nil
 						}
 					}
 				}
 
-				return Todo{}, nil
+				return Event{}, nil
 			},
 		},
 	}
