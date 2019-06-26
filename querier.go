@@ -100,9 +100,21 @@ var eventType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Event",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.ID,
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 				return params.Source.(*cloudevents.Event).ID(), nil
+			},
+		},
+		"type": &graphql.Field{
+			Type: graphql.String,
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				return params.Source.(*cloudevents.Event).Type(), nil
+			},
+		},
+		"source": &graphql.Field{
+			Type: graphql.String,
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				return params.Source.(*cloudevents.Event).Source(), nil
 			},
 		},
 		"subject": &graphql.Field{
@@ -111,11 +123,10 @@ var eventType = graphql.NewObject(graphql.ObjectConfig{
 				return params.Source.(*cloudevents.Event).Subject(), nil
 			},
 		},
-		"uid": &graphql.Field{
-			Type: graphql.String,
+		"time": &graphql.Field{
+			Type: graphql.DateTime,
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				data, err := eventParamAsMap(params)
-				return data["metadata"].(map[string]interface{})["uid"], err
+				return params.Source.(*cloudevents.Event).Time(), nil
 			},
 		},
 		"data": &graphql.Field{
