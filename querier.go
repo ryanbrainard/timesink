@@ -39,6 +39,12 @@ const queryByApiVersionKindName = "SELECT raw FROM cloud_events WHERE " +
 	"raw -> 'data' ->> 'kind'                ~* $2 AND " +
 	"raw -> 'data' ->  'metadata' ->> 'name' ~* $3"
 
+// TODO: look at all ownerrefs ( not just 0 )
+const queryByOwnerRefApiVersionKindName = "SELECT raw FROM cloud_events WHERE " +
+	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'apiVersion' ~* $1 AND " +
+	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'kind'       ~* $2 AND " +
+	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'name'       ~* $3"
+
 func (q *querier) queryLastEventByGroupVersionKindName(apiVersion, kind, name string) (*cloudevents.Event, error) {
 	query := queryByApiVersionKindName + " ORDER BY time DESC LIMIT 1" // TODO: how to get correct one at point in time?
 	row := q.db.QueryRow(query, apiVersion, kind, name)
@@ -47,6 +53,16 @@ func (q *querier) queryLastEventByGroupVersionKindName(apiVersion, kind, name st
 
 func (q *querier) queryEventsByGroupVersionKindName(apiVersion, kind, name string, limit int) ([]*cloudevents.Event, error) {
 	query := queryByApiVersionKindName + " LIMIT $4"
+	rows, err := q.db.Query(query, apiVersion, kind, name, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return q.scanEventRows(rows)
+}
+
+func (q *querier) queryEventsByOwnerRefGroupVersionKindName(apiVersion, kind, name string, limit int) ([]*cloudevents.Event, error) {
+	query := queryByOwnerRefApiVersionKindName + " LIMIT $4"
 	rows, err := q.db.Query(query, apiVersion, kind, name, limit)
 	if err != nil {
 		return nil, err
@@ -216,6 +232,9 @@ func init() {
 		Type: graphql.NewList(eventType),
 		Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 			data, err := eventParamAsMap(params)
+			if err != nil {
+				return nil, err
+			}
 			ownerRefs := data["metadata"].(map[string]interface{})["ownerReferences"].([]interface{})
 			var owners []*cloudevents.Event
 			for _, ownerRef := range ownerRefs {
@@ -230,6 +249,22 @@ func init() {
 				owners = append(owners, owner)
 			}
 			return owners, err
+		},
+	})
+
+	eventType.AddFieldConfig("owned", &graphql.Field{
+		Type: graphql.NewList(eventType),
+		Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+			data, err := eventParamAsMap(params)
+			if err != nil {
+				return nil, err
+			}
+			return params.Context.Value("q").(*querier).queryEventsByOwnerRefGroupVersionKindName(
+				data["apiVersion"].(string),
+				data["kind"].(string),
+				data["metadata"].(map[string]interface{})["name"].(string),
+				5, // TODO?
+			)
 		},
 	})
 }
