@@ -34,19 +34,25 @@ func (q *querier) queryEventById(id string) (*cloudevents.Event, error) {
 	return q.scanEventRow(row)
 }
 
-const queryByApiVersionKindName = "SELECT raw FROM cloud_events WHERE " +
+const queryByApiVersionKindName = "SELECT DISTINCT ON(raw -> 'data' ->  'metadata' ->> 'uid') raw " +
+	"FROM cloud_events " +
+	"WHERE " +
 	"raw -> 'data' ->> 'apiVersion'          ~* $1 AND " +
 	"raw -> 'data' ->> 'kind'                ~* $2 AND " +
-	"raw -> 'data' ->  'metadata' ->> 'name' ~* $3"
+	"raw -> 'data' ->  'metadata' ->> 'name' ~* $3 " +
+	"ORDER BY raw -> 'data' ->  'metadata' ->> 'uid', time DESC"
 
 // TODO: look at all ownerrefs ( not just 0 )
-const queryByOwnerRefApiVersionKindName = "SELECT raw FROM cloud_events WHERE " +
+const queryByOwnerRefApiVersionKindName = "SELECT DISTINCT ON(raw -> 'data' ->  'metadata' ->> 'uid') raw " +
+	"FROM cloud_events " +
+	"WHERE " +
 	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'apiVersion' ~* $1 AND " +
 	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'kind'       ~* $2 AND " +
-	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'name'       ~* $3"
+	"raw -> 'data' -> 'metadata' -> 'ownerReferences' -> 0 ->> 'name'       ~* $3" +
+	"ORDER BY raw -> 'data' ->  'metadata' ->> 'uid', time DESC"
 
 func (q *querier) queryLastEventByGroupVersionKindName(apiVersion, kind, name string) (*cloudevents.Event, error) {
-	query := queryByApiVersionKindName + " ORDER BY time DESC LIMIT 1" // TODO: how to get correct one at point in time?
+	query := queryByApiVersionKindName // TODO: how to get correct one at point in time?
 	row := q.db.QueryRow(query, apiVersion, kind, name)
 	return q.scanEventRow(row)
 }
