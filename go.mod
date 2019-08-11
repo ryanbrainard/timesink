@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/cloudevents/sdk-go v0.0.0-20190617162319-ccd952c41493
 	github.com/gogo/protobuf v1.2.0 // indirect
+	github.com/google/ko v0.0.0-20190809220715-c959e60df3c7 // indirect
 	github.com/graphql-go/graphql v0.7.8
 	github.com/graphql-go/handler v0.2.3
 	github.com/lib/pq v1.1.1

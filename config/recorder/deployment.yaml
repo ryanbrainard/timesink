@@ -1,0 +1,25 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: timesink-recorder
+spec:
+  selector:
+    matchLabels:
+      app: timesink
+      process: recorder
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: timesink
+        process: recorder
+    spec:
+      containers:
+        - name: timesink-recorder
+          image: go.ryanbrainard.com/timesink/cmd/timesink-recorder
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: timesink
+
