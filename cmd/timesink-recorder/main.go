@@ -16,6 +16,7 @@ func main() {
 	if !ok {
 		logger.Panic("DATABASE_URL not set")
 	}
+	databaseUrl = os.ExpandEnv(databaseUrl)
 	r := timesink.NewRecorder(databaseUrl, logger)
 
 	c, err := cloudevents.NewDefaultClient()
