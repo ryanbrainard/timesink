@@ -1,0 +1,58 @@
+# TODO: break up and move to dep
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+    name: timesink-source
+    namespace: timesink
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    name: timesink-view
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view
+subjects:
+    - kind: ServiceAccount
+      name: timesink-source
+      namespace: timesink
+
+---
+
+apiVersion: sources.eventing.knative.dev/v1alpha1
+kind: ApiServerSource
+metadata:
+    name: timesink-source
+    namespace: timesink
+spec:
+    mode: Resource
+    resources:
+        - apiVersion: apps/v1
+          kind: Deployment
+        - apiVersion: apps/v1
+          kind: ReplicaSet
+        - apiVersion: v1
+          kind: Pod
+    serviceAccountName: timesink-source
+    sink:
+        apiVersion: eventing.knative.dev/v1alpha1
+        kind: Broker
+        name: default
+
+---
+
+apiVersion: eventing.knative.dev/v1alpha1
+kind: Trigger
+metadata:
+    name: timesink-trigger
+    namespace: timesink
+spec:
+    subscriber:
+        ref:
+            apiVersion: serving.knative.dev/v1alpha1
+            kind: Service
+            name: timesink-recorder
