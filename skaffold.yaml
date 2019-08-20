@@ -1,0 +1,14 @@
+apiVersion: skaffold/v1beta13
+kind: Config
+build:
+  artifacts:
+    - image: ryanbrainard/timesink
+deploy:
+  kubectl:
+    manifests:
+      - ./kubernetes/**
+#portForward:
+#  - resourceType: deployment
+#    resourceName: leeroy-web
+#    port: 8080
+#    localPort: 9000

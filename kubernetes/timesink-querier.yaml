@@ -1,0 +1,16 @@
+apiVersion: serving.knative.dev/v1alpha1
+kind: Service
+metadata:
+  name: timesink-querier
+spec:
+  template:
+    spec:
+      containers:
+        - image: ryanbrainard/timesink
+          command:
+            - timesink-querier
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: timesink-database
