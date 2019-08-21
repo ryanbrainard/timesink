@@ -7,8 +7,3 @@ deploy:
   kubectl:
     manifests:
       - ./kubernetes/**
-#portForward:
-#  - resourceType: deployment
-#    resourceName: leeroy-web
-#    port: 8080
-#    localPort: 9000
